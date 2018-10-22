@@ -1,11 +1,23 @@
 const express = require('express')
 const app = express()
 const bodyParser = require('body-parser')
+const Users = require('./models/users.js')
 
 const cors = require('cors')
 
 const mongoose = require('mongoose')
-mongoose.connect(process.env.MLAB_URI || 'mongodb://localhost/exercise-track' )
+mongoose.connect(process.env.MLAB_URI)
+
+const db = mongoose.connection;
+db.on('error', console.error.bind(console, 'connection error:'));
+db.once('open', function() {
+  // we're connected!
+  console.log("connected to db " + db.name);
+  db.createCollection('fccExerciseTracker');
+});
+
+const collection = db.collection('fccExerciseTracker');
+console.log(collection.getName)
 
 app.use(cors())
 
@@ -16,6 +28,49 @@ app.use(bodyParser.json())
 app.use(express.static('public'))
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html')
+});
+
+//add a new user from the form
+app.post('/api/exercise/new-user', function(req, res) {
+  console.log(req.body);
+  //if user doesn't exist in db, add user
+  let newUser = new Users();
+  newUser.username = req.body.username;
+  collection.insertOne(newUser, (err, r) => {
+    if (err) console.log(err.message);
+    else console.log('Inserted: ' + r.insertedCount);
+  });
+  res.redirect('/');
+});
+
+//add an exercise to a users profile from the form
+app.post('/api/exercise/add', (req, res) => {
+  let shortDate = req.body.date;
+  if (shortDate == '') {
+    let date = new Date().toISOString();
+    shortDate = date.slice(0, 10);
+  }
+  collection.findOneAndUpdate(
+    {"username": req.body.userId},
+    { $push : { "exercises" : {
+      "description" : req.body.description,
+      "duration" : req.body.duration,
+      "date" : shortDate
+      }}},
+    (err, r) => {
+      if (err) console.log(err.message);
+      else console.log(r.value);
+    }
+  )
+  res.redirect('/');
+});
+
+//TODO Add get functionality for list of users
+app.get('/api/exercise/users', (req, res) => {
+  let results = [];
+  collection.find({}).stream()
+    .on('data', (doc) => results.push(doc))
+    .on('end', () => res.send(results));
 });
 
 
