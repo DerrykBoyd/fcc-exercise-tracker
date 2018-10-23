@@ -65,13 +65,41 @@ app.post('/api/exercise/add', (req, res) => {
   res.redirect('/');
 });
 
-//TODO Add get functionality for list of users
+//Add get functionality for list of users
 app.get('/api/exercise/users', (req, res) => {
   let results = [];
   collection.find({}).stream()
     .on('data', (doc) => results.push(doc))
     .on('end', () => res.send(results));
 });
+
+//TODO get excercise list of user optional filtered by date
+app.get('/api/exercise/log', (req, res) => {
+  let q = req.query;
+  let results = [];
+  if (!q.userId) res.send('userId field required.');
+  else {
+    collection.findOne({_id:q.userId}, (err, result) => {
+      if (err) console.log(err);
+      // console.log(result);
+      let doc = {};
+      doc["_id"] = result["_id"];
+      doc.username = result.username;
+      doc.count = result.exercises.length;
+      doc.log = result.exercises;
+      // if from and to specified - filter exercises
+      if (q.from && q.to) {
+        doc.log = result.exercises.filter(entry => entry.date > q.from && entry.date < q.to)
+      }
+      if (q.limit) {
+        let limited = doc.log.slice(0, q.limit);
+        doc.log = limited;
+      }
+      results.push(doc);
+      res.send(results);
+    });
+  }
+})
 
 
 // Not found middleware

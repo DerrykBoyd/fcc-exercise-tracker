@@ -4,11 +4,12 @@ var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 
 var User = new Schema({
+  _id: {type: String},
 	username: {type: String, unique: true},
   exercises: [{
     description: String,
     duration: Number,
-    date: String
+    date: {type: Date, default: Date.now}
   }]
 });
 
